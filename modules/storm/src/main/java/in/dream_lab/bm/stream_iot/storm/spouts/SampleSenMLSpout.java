@@ -7,14 +7,13 @@ import in.dream_lab.bm.stream_iot.storm.genevents.utils.GlobalConstants;
 import in.dream_lab.bm.stream_iot.storm.genevents.logging.JRedis;
 import java.io.BufferedReader;  
 import java.io.FileReader;
-import java.io.IOException;   
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.topology.base.BaseRichSpout;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Values;
-import java.util.ArrayList;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
@@ -35,7 +34,8 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 	JRedis jr;
 	long msgId;
 	String line;
-	int p=1;
+	int p1=0;
+	int p=0;
 	String priority[];
 	public SampleSenMLSpout(){
 		//			this.csvFileName = "/home/ubuntu/sample100_sense.csv";
@@ -50,80 +50,76 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 		this.outSpoutCSVLogFileName = outSpoutCSVLogFileName;
 		this.scalingFactor = scalingFactor;
 		this.experiRunId = experiRunId;
+
 	}
 
 	public SampleSenMLSpout(String csvFileName, String outSpoutCSVLogFileName, double scalingFactor){
 		this(csvFileName, outSpoutCSVLogFileName, scalingFactor, "");
 	}
-
-
-	//public static void main(String[] args)   
-	//{   
-	//} 
-	int p1=0;
-	//Values values = new Values();
+	Values[] values3;
+	Values[] values2;
 	Values[] values1;
-	int[] priority1; 
+
 	@Override
 	public void nextTuple() 
 	{
 
+		int i=-1, j=-1, k=-1;
 		int count = 0, MAX_COUNT=10; // FIXME?
 		while(count < MAX_COUNT) 
 		{
 			List<String> entry = this.eventQueue.poll(); // nextTuple should not block!
 			if(entry == null) return;
 			count++;
-			Values values=new Values();
+			msgId++;
+			try 
+			{
+				ba.batchLogwriter(System.currentTimeMillis(),"MSGID," + msgId);
+				//jr.batchWriter(System.currentTimeMillis(),"MSGID_" + msgId);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			StringBuilder rowStringBuf = new StringBuilder();
 			for(String s : entry){
 				rowStringBuf.append(",").append(s);
 			}
 			String rowString = rowStringBuf.toString().substring(1);
 			String newRow = rowString.substring(rowString.indexOf(",")+1);
-			msgId++;
-			values.add(msgId);
-			values.add(newRow);
-			priority1[count]=Integer.parseInt(priority[p1]);
-			values1[count]=values;
-
-		}
-		for (int i = 0; i <priority1.length; i++){
-			int index = i;
-			for (int j = i ; j <= priority1.length-1; j++){
-				if (priority1[j] > priority1[index]){
-					index = j;
-				}
+			int a = Integer.parseInt(priority[p1]);
+			p1++;
+			if(a==3){
+				i++;
+				values3[i].add(Long.toString(msgId));
+				values3[i].add(newRow);
 			}
-			int temp = priority1[i];
-			Values temp1 = values1[i];
-			priority1[i] = priority1[index];
-			values1[i] = values1[index];
-			priority1[index] = temp;
-			values1[index] = temp1;
+			if(a=='2'){
+				j++;
+				values2[j].add(Long.toString(msgId));
+				values2[j].add(newRow);
+			}
+			if(a=='1'){
+				k++;
+				values1[k].add(Long.toString(msgId));
+				values1[k].add(newRow);
+			}
 		}
-		System.out.printf("Sorted Events "+ values1);
-		System.out.printf("Sorted priorities "+ priority1);
-		for (int k=1; k<values1.length; k++){
+		while (i!=-1){
+			this._collector.emit(values3[i]);
+			i--;
+		}
+		while(j!=-1){
+			this._collector.emit(values2[j]);
+			j--;
+		}
+		while(k!=-1){
 			this._collector.emit(values1[k]);
-			try 
-			{
-				//ba.batchLogwriter(System.currentTimeMillis(),"MSGID," + msgId);
-				jr.batchWriter(System.currentTimeMillis(),"MSGID_" + msgId);
-
-
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		values1= null;
-		priority1= null;
+			k--;
+		}	
 	}
 
 	@Override
 	public void open(Map map, TopologyContext context, SpoutOutputCollector collector) 
 	{
-
 		BatchedFileLogging.writeToTemp(this,this.outSpoutCSVLogFileName);
 		Random r=new Random();
 		try 
@@ -141,11 +137,11 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 		this.eventGen.launch(this.csvFileName, uLogfilename, -1, true); //Launch threads
 
 		ba=new BatchedFileLogging(uLogfilename, context.getThisComponentId());
-		jr=new JRedis(this.outSpoutCSVLogFileName);
-		try   
-		{  
-			//parsing a CSV file into BufferedReader class constructor  
-			BufferedReader br = new BufferedReader(new FileReader("/home/amna/priority_sys.csv"));   
+		//jr=new JRedis(this.outSpoutCSVLogFileName);
+		try 
+		{
+			FileReader reader = new FileReader("/home/amna/riot-bench-master/modules/tasks/src/main/resources/priority_sys.csv");
+			BufferedReader br = new BufferedReader(reader);
 			while ((br.readLine()) != null)   //returns a Boolean value  
 			{  
 				line = br.readLine();
@@ -154,12 +150,10 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 				p++;
 			} 
 		}   
-		catch (IOException e)   
-		{  
-			e.printStackTrace();  
-		}  
-
-
+		catch(Exception e)
+	 	{
+		  
+	  	}
 
 
 	}
