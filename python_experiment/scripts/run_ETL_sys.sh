@@ -3,41 +3,13 @@ home_source=${home_path}"storm/riot-bench/modules/tasks/src/main/resources/"
 
 # set the input rate
 IMG_WIDTH=$1
-IMG2_WIDTH=1.5
+IMG2_WIDTH=1
 inputRate=$(echo "$IMG_WIDTH $IMG2_WIDTH" | awk '{printf "%.4f \n", $1/$2}')
 echo $inputRate
 #
 
-inputrate=$inputRate
+inputrate=$1
 # choose the scheduler methods
-option=$2
-case "$option" in
-   "test") echo "using test scheduler"
-	topologyMap="spout1:core1,SenMlParseBolt:worker1,RangeFilterBolt:worker1,BloomFilterBolt:worker1,InterpolationBolt:worker1,JoinBolt:worker1,AnnotationBolt:worker1,CsvToSenMLBolt:worker1,PublishBolt:worker1,sink:worker1"
-   ;;
-   "default") echo "using default scheduler"
-	topologyMap="spout1:core1,SenMlParseBolt:edge5,RangeFilterBolt:worker2,BloomFilterBolt:worker2,InterpolationBolt:edge5,JoinBolt:worker2,AnnotationBolt:edge5,CsvToSenMLBolt:edge5,PublishBolt:edge5,sink:worker2"
-   ;;
-   "resource") echo "using resource aware scheduler"
-	# Resource aware 
-   	topologyMap="spout1:core1,SenMlParseBolt:edge5,RangeFilterBolt:edge5,BloomFilterBolt:edge5,InterpolationBolt:edge5,JoinBolt:edge5,AnnotationBolt:edge5,CsvToSenMLBolt:edge5,PublishBolt:edge5,sink:worker2"
-   ;;
-
-   "amnis") echo "using amnis scheduler"
- 	# Amnis methods
-   	topologyMap="spout1:core1,SenMlParseBolt:edge5,RangeFilterBolt:edge5,BloomFilterBolt:edge5,InterpolationBolt:edge5,JoinBolt:edge5,AnnotationBolt:edge5,CsvToSenMLBolt:worker2,PublishBolt:worker2,sink:worker2"
-   ;;
-   "coda") echo "using coda scheduler"
- 	# coda methods
-	topologyMap="spout1:core1,SenMlParseBolt:worker2,RangeFilterBolt:worker2,BloomFilterBolt:worker2,InterpolationBolt:worker2,JoinBolt:worker2,AnnotationBolt:worker2,CsvToSenMLBolt:worker2,PublishBolt:worker2,sink:worker2"
-   ;;
-   "beaver") echo "using beaver scheduler"
- 	# beaver 
-	topologyMap="spout1:core1,SenMlParseBolt:edge5,RangeFilterBolt:edge5,BloomFilterBolt:edge5,InterpolationBolt:edge5,JoinBolt:edge5,AnnotationBolt:worker2,CsvToSenMLBolt:worker2,PublishBolt:worker2,sink:worker2"
-   ;;
-#"spout1:edge1,SenMlParseBolt:edge1,RangeFilterBolt:edge1,BloomFilterBolt:edge1,InterpolationBolt:edge1,JoinBolt:edge1,AnnotationBolt:edge1,CsvToSenMLBolt:core1,PublishBolt:core1,sink:core1,spout2:edge2,SenMlParseBolt1:edge2,RangeFilterBolt1:edge2,BloomFilterBolt1:edge2,InterpolationBolt1:edge2,JoinBolt1:edge2, AnnotationBolt1:edge2,CsvToSenMLBolt1:edge2,PublishBolt1:edge2"
-esac
-
 ${home_path}storm/bin/storm kill ETLTopologySYS
 
 cd ~/storm/riot-bench/
