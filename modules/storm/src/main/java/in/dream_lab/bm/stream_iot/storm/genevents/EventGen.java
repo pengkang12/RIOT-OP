@@ -58,7 +58,9 @@ public class EventGen {
             } else if (outCSVFileName.indexOf("PLUG") != -1) {
                 datasetType = "PLUG";// GlobalConstants.dataSetType = "PLUG";
             }
-            
+            else if (outCSVFileName.indexOf("SENML") != -1) {
+                datasetType = "SENML";// GlobalConstants.dataSetType = "SENML";
+            }           
             List<TableClass> nestedList = CsvSplitter.roundRobinSplitCsvToMemory(csvFileName, numThreads, scalingFactor, datasetType);
             
             

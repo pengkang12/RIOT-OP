@@ -14,7 +14,7 @@ ${home_path}storm/bin/storm kill ETLTopologySYS
 
 cd ~/storm/riot-bench/
 
-#~/maven/bin/mvn clean compile package -DskipTests
+mvn clean compile package -DskipTests
 
 cd -
 

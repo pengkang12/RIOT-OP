@@ -5,8 +5,7 @@ import in.dream_lab.bm.stream_iot.storm.genevents.ISyntheticEventGen;
 import in.dream_lab.bm.stream_iot.storm.genevents.logging.BatchedFileLogging;
 import in.dream_lab.bm.stream_iot.storm.genevents.utils.GlobalConstants;
 import in.dream_lab.bm.stream_iot.storm.genevents.logging.JRedis;
-import java.io.BufferedReader;  
-import java.io.FileReader;
+
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -33,10 +32,6 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 	BatchedFileLogging ba;
 	JRedis jr;
 	long msgId;
-	String line;
-	int p1=0;
-	int p=0;
-	String priority[];
 	public SampleSenMLSpout(){
 		//			this.csvFileName = "/home/ubuntu/sample100_sense.csv";
 		//			System.out.println("Inside  sample spout code");
@@ -50,71 +45,42 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 		this.outSpoutCSVLogFileName = outSpoutCSVLogFileName;
 		this.scalingFactor = scalingFactor;
 		this.experiRunId = experiRunId;
-
 	}
 
 	public SampleSenMLSpout(String csvFileName, String outSpoutCSVLogFileName, double scalingFactor){
 		this(csvFileName, outSpoutCSVLogFileName, scalingFactor, "");
 	}
-	Values[] values3;
-	Values[] values2;
-	Values[] values1;
 
 	@Override
 	public void nextTuple() 
 	{
-
-		int i=-1, j=-1, k=-1;
 		int count = 0, MAX_COUNT=10; // FIXME?
 		while(count < MAX_COUNT) 
 		{
 			List<String> entry = this.eventQueue.poll(); // nextTuple should not block!
 			if(entry == null) return;
 			count++;
-			msgId++;
-			try 
-			{
-				ba.batchLogwriter(System.currentTimeMillis(),"MSGID," + msgId);
-				//jr.batchWriter(System.currentTimeMillis(),"MSGID_" + msgId);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			Values values = new Values();
 			StringBuilder rowStringBuf = new StringBuilder();
 			for(String s : entry){
 				rowStringBuf.append(",").append(s);
 			}
 			String rowString = rowStringBuf.toString().substring(1);
 			String newRow = rowString.substring(rowString.indexOf(",")+1);
-			int a = Integer.parseInt(priority[p1]);
-			p1++;
-			if(a==3){
-				i++;
-				values3[i].add(Long.toString(msgId));
-				values3[i].add(newRow);
-			}
-			if(a=='2'){
-				j++;
-				values2[j].add(Long.toString(msgId));
-				values2[j].add(newRow);
-			}
-			if(a=='1'){
-				k++;
-				values1[k].add(Long.toString(msgId));
-				values1[k].add(newRow);
+			msgId++;
+			values.add(Long.toString(msgId));
+			values.add(newRow);
+			this._collector.emit(values);
+			try 
+			{
+				//ba.batchLogwriter(System.currentTimeMillis(),"MSGID," + msgId);
+				jr.batchWriter(System.currentTimeMillis(),"MSGID_" + msgId);
+
+
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
-		while (i!=-1){
-			this._collector.emit(values3[i]);
-			i--;
-		}
-		while(j!=-1){
-			this._collector.emit(values2[j]);
-			j--;
-		}
-		while(k!=-1){
-			this._collector.emit(values1[k]);
-			k--;
-		}	
 	}
 
 	@Override
@@ -137,23 +103,8 @@ public class SampleSenMLSpout extends BaseRichSpout implements ISyntheticEventGe
 		this.eventGen.launch(this.csvFileName, uLogfilename, -1, true); //Launch threads
 
 		ba=new BatchedFileLogging(uLogfilename, context.getThisComponentId());
-		//jr=new JRedis(this.outSpoutCSVLogFileName);
-		try 
-		{
-			FileReader reader = new FileReader("/home/amna/riot-bench-master/modules/tasks/src/main/resources/priority_sys.csv");
-			BufferedReader br = new BufferedReader(reader);
-			while ((br.readLine()) != null)   //returns a Boolean value  
-			{  
-				line = br.readLine();
-				System.out.printf("data "+ line);
-				priority[p]=line;
-				p++;
-			} 
-		}   
-		catch(Exception e)
-	 	{
-		  
-	  	}
+		jr=new JRedis(this.outSpoutCSVLogFileName);
+
 
 
 	}

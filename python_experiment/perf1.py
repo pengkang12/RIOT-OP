@@ -5,66 +5,67 @@ import time
 import os
 import json
 
-app=sys.argv[1]
+app = sys.argv[1]
 
 import redis
 
 # step 2: define our connection information for Redis
 # Replaces with your configuration information
-redis_host = "master"
+redis_host = "cc"
 redis_port = 6379
 redis_password = ""
 
 bucket = [1, 2, 4, 8, 16,
- 32, 64, 128, 256, 512,
- 1024, 2048, 4096, 8192, 16384, 
-32768, 60000, 120000]
+          32, 64, 128, 256, 512,
+          1024, 2048, 4096, 8192, 16384,
+          32768, 60000, 120000]
+
 
 def get_power(number):
-     for i in range(len(bucket)):
-         if number <= bucket[i]: 
-             return i 
-     
+    for i in range(len(bucket)):
+        if number <= bucket[i]:
+            return i
+
 
 def calculate_latency(appName="ETLTopologySYS"):
     """calculate latency from Redis data
     https://blog.bramp.net/post/2018/01/16/measuring-percentile-latency/
     """
     successRate = 0.0
-    throughput = 0 
+    throughput = 0
     tail_latency = 0
     try:
         r = redis.StrictRedis(host=redis_host, port=redis_port, password=redis_password, decode_responses=True)
         # calculate latency for 1 minute.
         timestamp = int(time.time())
-        remain = timestamp % 60 
-	timestamp = timestamp - remain - 120
-        timestamp = str(timestamp) 
+        remain = timestamp % 60
+        timestamp = timestamp - remain - 120
+        timestamp = str(timestamp)
 
         start = timeit.default_timer()
         spout = r.hgetall(appName+"_spout_"+timestamp)
         stop = timeit.default_timer()
-        print('Transfer array for storing tuple start time: ', stop - start)  
-        start = timeit.default_timer()
- 
-        # use pipeline to improve redis effiency. 
-        sink = r.hgetall(appName+"_sink_"+timestamp)
-	timestamp2 = str(int(timestamp) + 60)
-        sink2 = r.hgetall(appName+"_sink_"+timestamp2) 
-        stop = timeit.default_timer()
-        print('Transferarray for storing tuple end time: ', stop - start)  
+        print('Transfer array for storing tuple start time: ', stop - start)
         start = timeit.default_timer()
 
-        latency_bucket = [ 0 for i in range(len(bucket))]
-	for key, value in spout.items():
+        # use pipeline to improve redis efficiency.
+        sink = r.hgetall(appName+"_sink_"+timestamp)
+        timestamp2 = str(int(timestamp) + 60)
+        sink2 = r.hgetall(appName+"_sink_"+timestamp2)
+        stop = timeit.default_timer()
+        print('Transfer array for storing tuple end time: ', stop - start)
+        start = timeit.default_timer()
+
+        latency_bucket = [0 for i in range(len(bucket))]
+        for key, value in spout.items():
             word = key.split("_")
-	    # message example: MSGID_1923232323"
+            # message example: MSGID_1923232323"
             if word[1] in sink:
-		# start data and end data at same minute interval
+                # start data and end data at the same minute interval
                 new_latency = int(sink[word[1]])-int(value)
-	    elif word[1] in sink2:
-		# end data at next minute interval.
-                new_latency = int(sink2[word[1]])-int(value) + 60000 
+            elif word[1] in sink2:
+                # end data at the next minute interval.
+                new_latency = int(sink2[word[1]])-int(value) + 60000
             else:
                 continue
             if new_latency >= 60000 or new_latency <= 0:
@@ -73,7 +74,7 @@ def calculate_latency(appName="ETLTopologySYS"):
             latency_bucket[index] += 1
 
         stop = timeit.default_timer()
-        print('calculate end to end time: ', stop - start)  
+        print('calculate end to end time: ', stop - start)
         count = 0
         throughput = len(spout)
         if throughput > 0:
@@ -81,21 +82,21 @@ def calculate_latency(appName="ETLTopologySYS"):
 
         tail_latency = 60000
         if throughput == 0:
-	    tail_latency = 0
-	else:
+            tail_latency = 0
+        else:
             for i in range(len(bucket)):
-            	count += latency_bucket[i]
-		latency_bucket[i] = count
-                if count*1.0/throughput >=0.95:
-		    if i == 0:
+                count += latency_bucket[i]
+                latency_bucket[i] = count
+                if count*1.0/throughput >= 0.95:
+                    if i == 0:
                         tail_latency = 1
                     elif i < len(bucket):
-                    	tail_latency = bucket[i-1] + (bucket[i] - bucket[i-1])*(0.95*throughput - latency_bucket[i-1])/(latency_bucket[i] - latency_bucket[i-1]+1)
-       		    else:
-			tail_latency = 60000
-		    break
-        print("some result: ", tail_latency, throughput, latency_bucket)
-        # delete the data from redis	
+                        tail_latency = bucket[i-1] + (bucket[i] -(bucket[i] - bucket[i-1]) * (0.95 * throughput - latency_bucket[i-1]) / (latency_bucket[i] - latency_bucket[i-1] + 1)
+                    else:
+                        tail_latency = 60000
+                    break
+        print("Some result: ", tail_latency, throughput, latency_bucket)
+        # Delete the data from Redis	
         keys = r.keys(appName+"_sink_"+timestamp)
         keys = r.keys(appName+"_spout_"+timestamp)
         r.delete(*keys)
@@ -112,24 +113,24 @@ def statistic_info(app_id):
 
     r = requests.get(url+app_id)
     data = r.json()
-    #print(data)
-    print("\nstart experiment------------------------------")
+    # print(data)
+    print("\nStart experiment------------------------------")
     total_execute = 0
     total_capacity = 0 
     bolts_capacity = {}
     sink_data = {}
     for each in data['bolts']:
-        # sink may influence our results. Therefore, we don't use sink as metrics.  
+        # Sink may influence our results, so we don't use sink as a metric.  
         if 'sink' in each['boltId']:
             sink_data = each
             continue
         total_capacity += float(each['capacity'])
         bolts_capacity[each['boltId']] = float(each['capacity'])
-    #collect container cpu usage for each minute. we should calculate cpu usage, then run collect_container_cpu.py to produce new data for next minute. 
+    # Collect container CPU usage for each minute. We should calculate CPU usage, then run collect_container_cpu.py to produce new data for the next minute. 
     cpu = {}
     count = 0
    
-    # calculate cpu usage for application's worker .
+    # Calculate CPU usage for the application's worker.
     app_cpu = {}
     capacity_ratio = {}
     for each in data['workers']:
@@ -141,23 +142,23 @@ def statistic_info(app_id):
         if total_capacity == 0:
             return
 
-    print("The name of application is {0}, count is {1}".format(data['name'], count))
+    print("The name of the application is {0}, count is {1}".format(data['name'], count))
       
     result['latency'], result['throughput'], result['successRate'] = calculate_latency(data['name'])
     # result['throughput'] = sink_data["executed"]
     with open('/tmp/skopt_input_{0}.txt'.format(data['name']), 'a+') as f: 
-        f.write(json.dumps(result)+"\n")
-    print("result is ", result)
+        f.write(json.dumps(result) + "\n")
+    print("Result is ", result)
 
     switch = False
     for each in data['topologyStats']:
         if each['window'] == "600":
             switch = True
-    if switch== False:
+    if switch == False:
         pass 
 
 def getTopologySummary():
-    r = requests.get(url+"summary")
+    r = requests.get(url + "summary")
     data = r.json()
     for each in data['topologies']:
         if app in each['id']:
@@ -167,18 +168,13 @@ import timeit
 
 start = timeit.default_timer()
 
-
 getTopologySummary()
-#os.system("python BO/bayesian_optimization.py")
+# os.system("python BO/bayesian_optimization.py")
 if app == "IoT":
-    #os.system("python BO/bayesian_optimization.py >> /tmp/bo.log")
+    # os.system("python BO/bayesian_optimization.py >> /tmp/bo.log")
     pass
 
 stop = timeit.default_timer()
 
-print('total running Time: ', stop - start)  
+print('Total running Time: ', stop - start)  
 start = timeit.default_timer()
-
-
-start = timeit.default_timer()
-
